@@ -1,0 +1,21 @@
+{
+  "tests": [
+    {
+      "name": "Register new seller",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "action": "register",
+        "username": "testuser",
+        "email": "test@example.com",
+        "password": "testpass123",
+        "card_number": "1234567890123456"
+      },
+      "expectedStatus": 201,
+      "expectedBody": {
+        "success": true
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

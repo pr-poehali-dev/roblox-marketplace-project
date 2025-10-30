@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -22,12 +23,12 @@ interface Product {
 }
 
 const Index = () => {
+  const navigate = useNavigate();
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [email, setEmail] = useState('');
   const [robloxUsername, setRobloxUsername] = useState('');
-
-  const products: Product[] = [
+  const [products, setProducts] = useState<Product[]>([
     {
       id: 1,
       name: 'Robux',
@@ -93,7 +94,23 @@ const Index = () => {
       reviews: 543,
       deliveryTime: '10-15 минут'
     }
-  ];
+  ]);
+
+  useEffect(() => {
+    loadProducts();
+  }, []);
+
+  const loadProducts = async () => {
+    try {
+      const response = await fetch('https://functions.poehali.dev/ede74763-f530-4838-81af-4f5a053a539c');
+      const data = await response.json();
+      if (data.products && data.products.length > 0) {
+        setProducts(data.products);
+      }
+    } catch (error) {
+      console.error('Failed to load products:', error);
+    }
+  };
 
   const getDiscountedPrice = (price: number, discount?: number) => {
     if (!discount) return price;
@@ -105,15 +122,37 @@ const Index = () => {
     setIsCheckoutOpen(true);
   };
 
-  const handlePurchase = () => {
-    if (!email || !robloxUsername) {
+  const handlePurchase = async () => {
+    if (!email || !robloxUsername || !selectedProduct) {
       alert('Заполните все поля');
       return;
     }
-    alert(`Заказ оформлен!\nEmail: ${email}\nRoblox: ${robloxUsername}\nСумма: ${selectedProduct ? getDiscountedPrice(selectedProduct.price, selectedProduct.discount) : 0} ₽\n\nДеньги будут переведены на карту 2200 7005 3598 3257`);
-    setIsCheckoutOpen(false);
-    setEmail('');
-    setRobloxUsername('');
+
+    try {
+      const response = await fetch('https://functions.poehali.dev/92f50d56-b8b2-4aac-9ddb-be1832819409', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          product_id: selectedProduct.id,
+          buyer_email: email,
+          roblox_username: robloxUsername
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert(`Заказ оформлен!\nЗаказ #${data.order_id}\nEmail: ${email}\nRoblox: ${robloxUsername}\nСумма: ${data.total_price} ₽\n\nКомиссия ${data.commission} ₽ будет переведена на карту ${data.commission_card}`);
+        setIsCheckoutOpen(false);
+        setEmail('');
+        setRobloxUsername('');
+        loadProducts();
+      } else {
+        alert('Ошибка: ' + data.error);
+      }
+    } catch (error) {
+      alert('Не удалось оформить заказ');
+    }
   };
 
   return (
@@ -132,11 +171,11 @@ const Index = () => {
             </div>
             
             <div className="flex items-center gap-4">
-              <Button variant="ghost">
+              <Button variant="ghost" onClick={() => navigate('/seller')}>
                 <Icon name="User" className="mr-2" size={18} />
                 Войти
               </Button>
-              <Button>
+              <Button onClick={() => navigate('/seller')}>
                 <Icon name="Store" className="mr-2" size={18} />
                 Продать
               </Button>
